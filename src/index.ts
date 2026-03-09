@@ -9,6 +9,7 @@ import { createGame, tick } from './game/game';
 import type { GameState } from './game/game';
 import { render } from './renderer/render';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from './renderer/layout';
+import { initKeyboard } from './input/keyboard';
 
 // ---------------------------------------------------------------------------
 // Canvas setup
@@ -48,7 +49,7 @@ function gameLoop(timestamp: number): void {
 requestAnimationFrame(gameLoop);
 
 // ---------------------------------------------------------------------------
-// Exports for future input module to access
+// Exports for input module to access
 // ---------------------------------------------------------------------------
 
 export function getState(): GameState {
@@ -58,3 +59,9 @@ export function getState(): GameState {
 export function setState(newState: GameState): void {
   state = newState;
 }
+
+// ---------------------------------------------------------------------------
+// Initialize keyboard input
+// ---------------------------------------------------------------------------
+
+initKeyboard({ getState, setState });
