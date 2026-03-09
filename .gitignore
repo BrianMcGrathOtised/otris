@@ -1,0 +1,4 @@
+.oes/
+node_modules/
+dist/
+.env
