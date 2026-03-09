@@ -332,6 +332,154 @@ describe('LobbyManager', () => {
     });
   });
 
+  describe('toggleReady', () => {
+    it('toggles a player ready state to true', () => {
+      const lobby = manager.createLobby('p1', 'Alice');
+      manager.joinLobby(lobby.id, 'p2', 'Bob');
+      const result = manager.toggleReady(lobby.id, 'p2', true);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        const player = result.lobby.players.find(p => p.id === 'p2');
+        expect(player!.ready).toBe(true);
+      }
+    });
+
+    it('toggles a player ready state to false', () => {
+      const lobby = manager.createLobby('p1', 'Alice');
+      manager.joinLobby(lobby.id, 'p2', 'Bob');
+      manager.toggleReady(lobby.id, 'p2', true);
+      const result = manager.toggleReady(lobby.id, 'p2', false);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        const player = result.lobby.players.find(p => p.id === 'p2');
+        expect(player!.ready).toBe(false);
+      }
+    });
+
+    it('returns error for nonexistent lobby', () => {
+      const result = manager.toggleReady('fake', 'p1', true);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toContain('not found');
+      }
+    });
+
+    it('returns error if player is not in the lobby', () => {
+      const lobby = manager.createLobby('p1', 'Alice');
+      const result = manager.toggleReady(lobby.id, 'p99', true);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toContain('not in lobby');
+      }
+    });
+  });
+
+  describe('areAllReady', () => {
+    it('returns false when not all players are ready', () => {
+      const lobby = manager.createLobby('p1', 'Alice');
+      manager.joinLobby(lobby.id, 'p2', 'Bob');
+      expect(manager.areAllReady(lobby.id)).toBe(false);
+    });
+
+    it('returns true when all players are ready', () => {
+      const lobby = manager.createLobby('p1', 'Alice');
+      manager.joinLobby(lobby.id, 'p2', 'Bob');
+      manager.toggleReady(lobby.id, 'p1', true);
+      manager.toggleReady(lobby.id, 'p2', true);
+      expect(manager.areAllReady(lobby.id)).toBe(true);
+    });
+
+    it('returns false for nonexistent lobby', () => {
+      expect(manager.areAllReady('fake')).toBe(false);
+    });
+
+    it('returns true for single player who is ready', () => {
+      const lobby = manager.createLobby('p1', 'Alice');
+      manager.toggleReady(lobby.id, 'p1', true);
+      expect(manager.areAllReady(lobby.id)).toBe(true);
+    });
+  });
+
+  describe('startGame', () => {
+    it('allows host to start when all players are ready', () => {
+      const lobby = manager.createLobby('p1', 'Alice');
+      manager.joinLobby(lobby.id, 'p2', 'Bob');
+      manager.toggleReady(lobby.id, 'p1', true);
+      manager.toggleReady(lobby.id, 'p2', true);
+      const result = manager.startGame(lobby.id, 'p1');
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.lobby.status).toBe('starting');
+      }
+    });
+
+    it('rejects start from non-host', () => {
+      const lobby = manager.createLobby('p1', 'Alice');
+      manager.joinLobby(lobby.id, 'p2', 'Bob');
+      manager.toggleReady(lobby.id, 'p1', true);
+      manager.toggleReady(lobby.id, 'p2', true);
+      const result = manager.startGame(lobby.id, 'p2');
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toContain('host');
+      }
+    });
+
+    it('rejects start when not all players are ready', () => {
+      const lobby = manager.createLobby('p1', 'Alice');
+      manager.joinLobby(lobby.id, 'p2', 'Bob');
+      manager.toggleReady(lobby.id, 'p1', true);
+      const result = manager.startGame(lobby.id, 'p1');
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toContain('ready');
+      }
+    });
+
+    it('allows host override with 2+ players even if not all ready', () => {
+      const lobby = manager.createLobby('p1', 'Alice');
+      manager.joinLobby(lobby.id, 'p2', 'Bob');
+      manager.toggleReady(lobby.id, 'p1', true);
+      // p2 not ready, but host can force start with 2+ players
+      const result = manager.startGame(lobby.id, 'p1', true);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.lobby.status).toBe('starting');
+      }
+    });
+
+    it('rejects host override with only 1 player', () => {
+      const lobby = manager.createLobby('p1', 'Alice');
+      const result = manager.startGame(lobby.id, 'p1', true);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toContain('2');
+      }
+    });
+
+    it('returns error for nonexistent lobby', () => {
+      const result = manager.startGame('fake', 'p1');
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toContain('not found');
+      }
+    });
+
+    it('rejects start when lobby is not in waiting status', () => {
+      const lobby = manager.createLobby('p1', 'Alice');
+      manager.joinLobby(lobby.id, 'p2', 'Bob');
+      manager.toggleReady(lobby.id, 'p1', true);
+      manager.toggleReady(lobby.id, 'p2', true);
+      manager.startGame(lobby.id, 'p1');
+      // Try starting again
+      const result = manager.startGame(lobby.id, 'p1');
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toContain('not in waiting');
+      }
+    });
+  });
+
   describe('disconnect cleanup', () => {
     it('removes player from lobby on disconnect', () => {
       const lobby = manager.createLobby('p1', 'Alice');

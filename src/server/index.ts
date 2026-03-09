@@ -186,11 +186,70 @@ wss.on('connection', (ws: WebSocket) => {
         break;
       }
 
-      case 'player_ready':
-      case 'start_game':
-      case 'send_chat':
-        // These will be handled in subsequent tasks
+      case 'player_ready': {
+        const lobbyId = lobbyManager.getPlayerLobbyId(playerId);
+        if (!lobbyId) {
+          sendError(ws, 'Not in a lobby');
+          break;
+        }
+        const result = lobbyManager.toggleReady(lobbyId, playerId, event.ready);
+        if (!result.success) {
+          sendError(ws, result.error);
+          break;
+        }
+        broadcastToLobby(lobbyId, { type: 'lobby_update', lobby: result.lobby });
+        sendEvent(ws, { type: 'lobby_update', lobby: result.lobby });
         break;
+      }
+
+      case 'start_game': {
+        const lobbyId = lobbyManager.getPlayerLobbyId(playerId);
+        if (!lobbyId) {
+          sendError(ws, 'Not in a lobby');
+          break;
+        }
+        const result = lobbyManager.startGame(lobbyId, playerId);
+        if (!result.success) {
+          sendError(ws, result.error);
+          break;
+        }
+        // Broadcast game_starting to all lobby members including sender
+        const countdown = result.lobby.settings.countdownTimer;
+        for (const player of result.lobby.players) {
+          const socket = playerSockets.get(player.id);
+          if (socket && socket.readyState === WebSocket.OPEN) {
+            sendEvent(socket, { type: 'game_starting', countdown });
+          }
+        }
+        break;
+      }
+
+      case 'send_chat': {
+        const lobbyId = lobbyManager.getPlayerLobbyId(playerId);
+        if (!lobbyId) {
+          sendError(ws, 'Not in a lobby');
+          break;
+        }
+        const senderName = playerNames.get(playerId) ?? 'Unknown';
+        const chatEvent: ServerEvent = {
+          type: 'chat_message',
+          playerId,
+          playerName: senderName,
+          message: event.message,
+          timestamp: Date.now(),
+        };
+        // Broadcast to all lobby members including sender
+        const lobby = lobbyManager.getLobby(lobbyId);
+        if (lobby) {
+          for (const player of lobby.players) {
+            const socket = playerSockets.get(player.id);
+            if (socket && socket.readyState === WebSocket.OPEN) {
+              sendEvent(socket, chatEvent);
+            }
+          }
+        }
+        break;
+      }
     }
   });
 

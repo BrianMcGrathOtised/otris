@@ -217,6 +217,57 @@ export class LobbyManager {
     return result;
   }
 
+  toggleReady(lobbyId: string, playerId: string, ready: boolean): LobbyResult {
+    const lobby = this.lobbies.get(lobbyId);
+    if (!lobby) {
+      return { success: false, error: 'Lobby not found' };
+    }
+
+    const player = lobby.players.find(p => p.id === playerId);
+    if (!player) {
+      return { success: false, error: 'Player not in lobby' };
+    }
+
+    player.ready = ready;
+    return { success: true, lobby };
+  }
+
+  areAllReady(lobbyId: string): boolean {
+    const lobby = this.lobbies.get(lobbyId);
+    if (!lobby) {
+      return false;
+    }
+    return lobby.players.every(p => p.ready);
+  }
+
+  startGame(lobbyId: string, requesterId: string, forceStart = false): LobbyResult {
+    const lobby = this.lobbies.get(lobbyId);
+    if (!lobby) {
+      return { success: false, error: 'Lobby not found' };
+    }
+
+    if (lobby.hostId !== requesterId) {
+      return { success: false, error: 'Only the host can start the game' };
+    }
+
+    if (lobby.status !== 'waiting') {
+      return { success: false, error: 'Lobby is not in waiting status' };
+    }
+
+    if (forceStart) {
+      if (lobby.players.length < 2) {
+        return { success: false, error: 'Need at least 2 players to force start' };
+      }
+    } else {
+      if (!this.areAllReady(lobbyId)) {
+        return { success: false, error: 'Not all players are ready' };
+      }
+    }
+
+    lobby.status = 'starting';
+    return { success: true, lobby };
+  }
+
   removePlayer(playerId: string): LeaveResult | null {
     const lobbyId = this.playerToLobby.get(playerId);
     if (!lobbyId) {
