@@ -20,6 +20,9 @@ import {
   updateLobbyList,
   setError,
   clearError,
+  setJoinTargetLobbyId,
+  setPasswordPromptVisible,
+  clearPasswordPrompt,
   isHost,
   getOwnPlayer,
 } from './lobby-state.js';
@@ -38,6 +41,7 @@ let menuScreen: HTMLDivElement;
 let createScreen: HTMLDivElement;
 let lobbyScreen: HTMLDivElement;
 let errorBanner: HTMLDivElement;
+let passwordDialog: HTMLDivElement;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -127,10 +131,28 @@ function buildMenuScreen(): HTMLDivElement {
 
   const btnRow = el('div', { className: 'lobby-row' }, createBtn, refreshBtn);
 
+  // Join by ID section (for private lobbies)
+  const joinIdHeader = el('h2', { className: 'lobby-section-title' }, 'Join by Lobby ID');
+  const joinIdInput = el('input', {
+    type: 'text',
+    id: 'join-id-input',
+    placeholder: 'Enter lobby ID...',
+    className: 'lobby-input',
+  });
+  const joinIdBtn = el('button', { className: 'lobby-btn lobby-btn-primary', id: 'join-by-id-btn' }, 'Join');
+  joinIdBtn.addEventListener('click', () => {
+    const lobbyId = (document.getElementById('join-id-input') as HTMLInputElement).value.trim();
+    if (lobbyId) {
+      setState(setJoinTargetLobbyId(state, lobbyId));
+      send({ type: 'join_lobby', lobbyId });
+    }
+  });
+  const joinIdRow = el('div', { className: 'lobby-row' }, joinIdInput, joinIdBtn);
+
   const listHeader = el('h2', { className: 'lobby-section-title' }, 'Public Lobbies');
   const lobbyList = el('div', { id: 'lobby-list', className: 'lobby-list' });
 
-  container.append(title, subtitle, nameRow, btnRow, listHeader, lobbyList);
+  container.append(title, subtitle, nameRow, btnRow, joinIdHeader, joinIdRow, listHeader, lobbyList);
   return container;
 }
 
@@ -271,6 +293,45 @@ function buildLobbyScreen(): HTMLDivElement {
   return container;
 }
 
+function buildPasswordDialog(): HTMLDivElement {
+  const overlay = el('div', { id: 'password-dialog', className: 'password-overlay' });
+  overlay.style.display = 'none';
+
+  const dialog = el('div', { className: 'password-dialog' });
+  const title = el('h3', { className: 'lobby-section-title' }, 'Password Required');
+  const pwInput = el('input', {
+    type: 'password',
+    id: 'password-prompt-input',
+    placeholder: 'Enter lobby password...',
+    className: 'lobby-input',
+  });
+
+  const submitBtn = el('button', { className: 'lobby-btn lobby-btn-accent', id: 'password-submit-btn' }, 'Join');
+  const cancelBtn = el('button', { className: 'lobby-btn', id: 'password-cancel-btn' }, 'Cancel');
+
+  const submitPassword = () => {
+    const password = (document.getElementById('password-prompt-input') as HTMLInputElement).value;
+    const lobbyId = state.joinTargetLobbyId;
+    if (lobbyId) {
+      send({ type: 'join_lobby', lobbyId, password });
+    }
+    setState(clearPasswordPrompt(state));
+  };
+
+  submitBtn.addEventListener('click', submitPassword);
+  pwInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submitPassword();
+  });
+  cancelBtn.addEventListener('click', () => {
+    setState(clearPasswordPrompt(state));
+  });
+
+  const btnRow = el('div', { className: 'lobby-row' }, submitBtn, cancelBtn);
+  dialog.append(title, pwInput, btnRow);
+  overlay.appendChild(dialog);
+  return overlay;
+}
+
 // ---------------------------------------------------------------------------
 // Render state into DOM
 // ---------------------------------------------------------------------------
@@ -284,6 +345,18 @@ function renderState(): void {
     errorBanner.style.display = 'block';
   } else {
     errorBanner.style.display = 'none';
+  }
+
+  // Password dialog
+  if (passwordDialog) {
+    passwordDialog.style.display = state.passwordPromptVisible ? 'flex' : 'none';
+    if (state.passwordPromptVisible) {
+      const input = document.getElementById('password-prompt-input') as HTMLInputElement | null;
+      if (input) {
+        input.value = '';
+        input.focus();
+      }
+    }
   }
 
   // Menu: lobby list
@@ -302,6 +375,7 @@ function renderState(): void {
         );
         const joinBtn = el('button', { className: 'lobby-btn lobby-btn-small' }, 'Join');
         joinBtn.addEventListener('click', () => {
+          setState(setJoinTargetLobbyId(state, entry.id));
           send({ type: 'join_lobby', lobbyId: entry.id });
         });
         row.append(info, joinBtn);
@@ -419,7 +493,12 @@ function handleServerEvent(conn: Connection): void {
         break;
 
       case 'error':
-        showError(event.message);
+        // If the error is about password and we have a join target, show password prompt
+        if (event.message.toLowerCase().includes('password') && state.joinTargetLobbyId) {
+          setState(setPasswordPromptVisible(state, true));
+        } else {
+          showError(event.message);
+        }
         break;
     }
   });
@@ -443,12 +522,16 @@ export function initLobbyUI(options: LobbyUIOptions): { destroy: () => void } {
   lobbyRoot = el('div', { id: 'lobby-root' });
   errorBanner = el('div', { id: 'error-banner', className: 'error-banner' });
   errorBanner.style.display = 'none';
+  errorBanner.addEventListener('click', () => {
+    setState(clearError(state));
+  });
 
   menuScreen = buildMenuScreen();
   createScreen = buildCreateScreen();
   lobbyScreen = buildLobbyScreen();
 
-  lobbyRoot.append(errorBanner, menuScreen, createScreen, lobbyScreen);
+  passwordDialog = buildPasswordDialog();
+  lobbyRoot.append(errorBanner, menuScreen, createScreen, lobbyScreen, passwordDialog);
   document.body.appendChild(lobbyRoot);
 
   // Wire server events

@@ -38,6 +38,8 @@ export interface LobbyState {
   chatMessages: ChatMessage[];
   lobbyList: LobbyListEntry[];
   errorMessage: string | null;
+  joinTargetLobbyId: string | null;
+  passwordPromptVisible: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -53,6 +55,8 @@ export function createInitialState(): LobbyState {
     chatMessages: [],
     lobbyList: [],
     errorMessage: null,
+    joinTargetLobbyId: null,
+    passwordPromptVisible: false,
   };
 }
 
@@ -73,7 +77,7 @@ export function setScreen(state: LobbyState, screen: Screen): LobbyState {
 }
 
 export function updateLobby(state: LobbyState, lobby: Lobby): LobbyState {
-  return { ...state, lobby, screen: 'lobby' };
+  return { ...state, lobby, screen: 'lobby', passwordPromptVisible: false, joinTargetLobbyId: null };
 }
 
 export function clearLobby(state: LobbyState): LobbyState {
@@ -100,6 +104,18 @@ export function setError(state: LobbyState, message: string): LobbyState {
 
 export function clearError(state: LobbyState): LobbyState {
   return { ...state, errorMessage: null };
+}
+
+export function setJoinTargetLobbyId(state: LobbyState, lobbyId: string | null): LobbyState {
+  return { ...state, joinTargetLobbyId: lobbyId };
+}
+
+export function setPasswordPromptVisible(state: LobbyState, visible: boolean): LobbyState {
+  return { ...state, passwordPromptVisible: visible };
+}
+
+export function clearPasswordPrompt(state: LobbyState): LobbyState {
+  return { ...state, passwordPromptVisible: false, joinTargetLobbyId: null };
 }
 
 export function isHost(state: LobbyState): boolean {
