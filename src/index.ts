@@ -1,8 +1,9 @@
 /**
- * Otris — main entry point.
+ * Otris -- main entry point.
  *
- * Sets up the canvas, creates the initial game state, and starts the
- * requestAnimationFrame render/tick loop.
+ * On page load, connects to the server and shows the lobby UI.
+ * When the host starts the game, the lobby hides and the game canvas
+ * takes over with the standard requestAnimationFrame loop.
  */
 
 import { createGame, tick } from './game/game';
@@ -10,14 +11,17 @@ import type { GameState } from './game/game';
 import { render } from './renderer/render';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from './renderer/layout';
 import { initKeyboard } from './input/keyboard';
+import { connect, DEFAULT_WS_URL } from './client/connection';
+import { initLobbyUI, showLobbyUI } from './client/lobby-ui';
 
 // ---------------------------------------------------------------------------
-// Canvas setup
+// Canvas setup (hidden until game starts)
 // ---------------------------------------------------------------------------
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 canvas.width = CANVAS_WIDTH;
 canvas.height = CANVAS_HEIGHT;
+canvas.style.display = 'none';
 
 const ctx = canvas.getContext('2d')!;
 
@@ -26,6 +30,7 @@ const ctx = canvas.getContext('2d')!;
 // ---------------------------------------------------------------------------
 
 let state: GameState = createGame();
+let animFrameId = 0;
 
 // ---------------------------------------------------------------------------
 // Animation frame loop
@@ -37,19 +42,45 @@ function gameLoop(timestamp: number): void {
   const delta = lastTime === 0 ? 0 : timestamp - lastTime;
   lastTime = timestamp;
 
-  // Cap delta to avoid huge jumps (e.g. when tab is backgrounded)
   const cappedDelta = Math.min(delta, 100);
 
   state = tick(state, cappedDelta);
   render(ctx, state);
 
-  requestAnimationFrame(gameLoop);
+  // When game is over, show a "Back to Lobby" overlay
+  if (state.gameOver && !document.getElementById('back-to-lobby-btn')) {
+    const btn = document.createElement('button');
+    btn.id = 'back-to-lobby-btn';
+    btn.className = 'lobby-btn lobby-btn-accent back-to-lobby';
+    btn.textContent = 'Back to Lobby';
+    btn.addEventListener('click', () => {
+      btn.remove();
+      stopGame();
+      showLobbyUI();
+    });
+    document.body.appendChild(btn);
+  }
+
+  animFrameId = requestAnimationFrame(gameLoop);
 }
 
-requestAnimationFrame(gameLoop);
+function startGame(): void {
+  canvas.style.display = 'block';
+  state = createGame();
+  lastTime = 0;
+  animFrameId = requestAnimationFrame(gameLoop);
+}
+
+function stopGame(): void {
+  canvas.style.display = 'none';
+  if (animFrameId) {
+    cancelAnimationFrame(animFrameId);
+    animFrameId = 0;
+  }
+}
 
 // ---------------------------------------------------------------------------
-// Exports for input module to access
+// Exports for input module
 // ---------------------------------------------------------------------------
 
 export function getState(): GameState {
@@ -65,3 +96,14 @@ export function setState(newState: GameState): void {
 // ---------------------------------------------------------------------------
 
 initKeyboard({ getState, setState });
+
+// ---------------------------------------------------------------------------
+// Connect to server and show lobby
+// ---------------------------------------------------------------------------
+
+const conn = connect(DEFAULT_WS_URL);
+
+initLobbyUI({
+  connection: conn,
+  onGameStart: startGame,
+});

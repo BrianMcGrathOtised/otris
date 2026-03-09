@@ -13,8 +13,182 @@
         align-items: center;
         min-height: 100vh;
         overflow: hidden;
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        color: #e0e0e0;
       }
       canvas { display: block; }
+
+      /* ---- Lobby UI ---- */
+      #lobby-root {
+        width: 100%;
+        max-width: 600px;
+        padding: 24px;
+      }
+      .lobby-title {
+        font-size: 3rem;
+        color: #00e5ff;
+        text-align: center;
+        letter-spacing: 0.3em;
+        margin-bottom: 4px;
+      }
+      .lobby-subtitle {
+        text-align: center;
+        color: #888;
+        margin-bottom: 24px;
+      }
+      .lobby-section-title {
+        color: #00e5ff;
+        font-size: 1.2rem;
+        margin: 16px 0 8px;
+        border-bottom: 1px solid #222;
+        padding-bottom: 4px;
+      }
+      .lobby-label {
+        display: block;
+        margin: 8px 0 4px;
+        color: #aaa;
+        font-size: 0.85rem;
+      }
+      .lobby-input {
+        background: #1a1a1a;
+        border: 1px solid #333;
+        color: #e0e0e0;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 0.95rem;
+        outline: none;
+        width: 100%;
+      }
+      .lobby-input:focus {
+        border-color: #00e5ff;
+      }
+      select.lobby-input {
+        cursor: pointer;
+      }
+      .lobby-row {
+        display: flex;
+        gap: 8px;
+        margin: 12px 0;
+        align-items: center;
+      }
+      .lobby-btn {
+        background: #222;
+        color: #e0e0e0;
+        border: 1px solid #444;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        transition: background 0.15s;
+        white-space: nowrap;
+      }
+      .lobby-btn:hover { background: #333; }
+      .lobby-btn-primary {
+        background: #00838f;
+        border-color: #00acc1;
+        color: #fff;
+      }
+      .lobby-btn-primary:hover { background: #00acc1; }
+      .lobby-btn-accent {
+        background: #00695c;
+        border-color: #00897b;
+        color: #fff;
+      }
+      .lobby-btn-accent:hover { background: #00897b; }
+      .lobby-btn-danger {
+        background: #b71c1c;
+        border-color: #e53935;
+        color: #fff;
+      }
+      .lobby-btn-danger:hover { background: #e53935; }
+      .lobby-btn-small {
+        padding: 4px 12px;
+        font-size: 0.8rem;
+      }
+
+      /* Lobby list */
+      .lobby-list {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #222;
+        border-radius: 4px;
+        padding: 4px;
+      }
+      .lobby-list-entry {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 8px;
+        border-bottom: 1px solid #1a1a1a;
+      }
+      .lobby-list-entry:last-child { border-bottom: none; }
+      .lobby-empty {
+        color: #555;
+        text-align: center;
+        padding: 16px;
+        font-style: italic;
+      }
+
+      /* Player list */
+      .player-list {
+        margin: 8px 0;
+      }
+      .player-entry {
+        padding: 4px 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .ready-yes { color: #4caf50; font-weight: bold; }
+      .ready-no { color: #f44336; font-weight: bold; }
+
+      /* Settings info */
+      .settings-info {
+        color: #888;
+        font-size: 0.85rem;
+      }
+
+      /* Chat panel */
+      .chat-panel {
+        margin: 12px 0;
+        border: 1px solid #222;
+        border-radius: 4px;
+        padding: 8px;
+      }
+      .chat-messages {
+        max-height: 160px;
+        overflow-y: auto;
+        margin-bottom: 8px;
+        font-size: 0.85rem;
+      }
+      .chat-line {
+        padding: 2px 0;
+      }
+      .chat-name {
+        color: #00e5ff;
+        font-weight: bold;
+      }
+
+      /* Error banner */
+      .error-banner {
+        background: #b71c1c;
+        color: #fff;
+        padding: 8px 12px;
+        border-radius: 4px;
+        margin-bottom: 12px;
+        text-align: center;
+      }
+
+      /* Back to lobby overlay button */
+      .back-to-lobby {
+        position: fixed;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 100;
+        font-size: 1.1rem;
+        padding: 12px 24px;
+      }
     </style>
   </head>
   <body>
