@@ -534,7 +534,11 @@ function handleServerEvent(conn: Connection): void {
         break;
 
       case 'player_left':
-        // Handled via lobby_update
+        // If the current player was kicked, return to menu
+        if (event.playerId === state.playerId) {
+          setState(clearLobby(state));
+        }
+        // Other players leaving is handled via lobby_update
         break;
 
       case 'game_starting':
