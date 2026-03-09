@@ -392,18 +392,59 @@ function renderState(): void {
     const header = document.getElementById('lobby-header');
     if (header) header.textContent = `Lobby: ${lobby.id}`;
 
-    // Settings display
+    // Settings display (editable for host, read-only for others)
     const settingsDiv = document.getElementById('lobby-settings');
     if (settingsDiv) {
       const speedLabel = lobby.settings.startingSpeed <= 0.5 ? 'Slow' : lobby.settings.startingSpeed >= 2 ? 'Fast' : 'Normal';
       settingsDiv.innerHTML = '';
-      settingsDiv.appendChild(
-        el(
-          'p',
-          { className: 'settings-info' },
-          `Max Players: ${lobby.settings.maxPlayers} | Speed: ${speedLabel} | ${lobby.settings.isPrivate ? 'Private' : 'Public'}`,
-        ),
-      );
+
+      if (isHost(state)) {
+        // Editable settings for host
+        const maxLabel = el('label', { className: 'lobby-label' }, 'Max Players ');
+        const maxSelect = el('select', { id: 'lobby-max-select', className: 'lobby-input' });
+        maxSelect.style.width = 'auto';
+        maxSelect.style.display = 'inline-block';
+        for (let i = 2; i <= 10; i++) {
+          const opt = el('option', { value: String(i) }, String(i));
+          if (i === lobby.settings.maxPlayers) opt.selected = true;
+          maxSelect.appendChild(opt);
+        }
+        maxSelect.addEventListener('change', () => {
+          send({
+            type: 'change_settings',
+            settings: { maxPlayers: parseInt(maxSelect.value, 10) },
+          });
+        });
+
+        const speedLabelEl = el('label', { className: 'lobby-label' }, 'Speed ');
+        const speedSelect = el('select', { id: 'lobby-speed-select', className: 'lobby-input' });
+        speedSelect.style.width = 'auto';
+        speedSelect.style.display = 'inline-block';
+        for (const [lbl, val] of [['Slow', '0.5'], ['Normal', '1'], ['Fast', '2']] as const) {
+          const opt = el('option', { value: val }, lbl);
+          if (parseFloat(val) === lobby.settings.startingSpeed) opt.selected = true;
+          speedSelect.appendChild(opt);
+        }
+        speedSelect.addEventListener('change', () => {
+          send({
+            type: 'change_settings',
+            settings: { startingSpeed: parseFloat(speedSelect.value) },
+          });
+        });
+
+        const privacyLabel = el('span', { className: 'settings-info' }, ` | ${lobby.settings.isPrivate ? 'Private' : 'Public'}`);
+        const row = el('div', { className: 'lobby-row' }, maxLabel, maxSelect, speedLabelEl, speedSelect, privacyLabel);
+        settingsDiv.appendChild(row);
+      } else {
+        // Read-only for non-host
+        settingsDiv.appendChild(
+          el(
+            'p',
+            { className: 'settings-info' },
+            `Max Players: ${lobby.settings.maxPlayers} | Speed: ${speedLabel} | ${lobby.settings.isPrivate ? 'Private' : 'Public'}`,
+          ),
+        );
+      }
     }
 
     // Player list
@@ -420,6 +461,16 @@ function renderState(): void {
           el('span', { className: readyClass }, readyIcon),
           el('span', {}, ` ${player.name}${hostTag}`),
         );
+
+        // Kick button: visible to host, not on themselves
+        if (isHost(state) && player.id !== state.playerId) {
+          const kickBtn = el('button', { className: 'lobby-btn lobby-btn-danger lobby-btn-small' }, 'Kick');
+          kickBtn.addEventListener('click', () => {
+            send({ type: 'kick_player', playerId: player.id });
+          });
+          row.appendChild(kickBtn);
+        }
+
         playerListEl.appendChild(row);
       }
     }
