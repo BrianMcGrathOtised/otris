@@ -2,6 +2,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { randomUUID } from 'node:crypto';
 import { parseClientEvent, type ServerEvent } from '../shared/protocol.js';
 import { LobbyManager } from './lobby.js';
+import { GameManager } from './game-manager.js';
 
 const PORT = parseInt(process.env['PORT'] ?? '3000', 10);
 
@@ -15,6 +16,13 @@ const playerNames = new Map<string, string>();
 
 function sendEvent(ws: WebSocket, event: ServerEvent): void {
   ws.send(JSON.stringify(event));
+}
+
+function sendToPlayer(playerId: string, event: ServerEvent): void {
+  const socket = playerSockets.get(playerId);
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    sendEvent(socket, event);
+  }
 }
 
 function sendError(ws: WebSocket, message: string, code?: string): void {
@@ -31,6 +39,46 @@ function broadcastToLobby(lobbyId: string, event: ServerEvent, excludePlayerId?:
       sendEvent(socket, event);
     }
   }
+}
+
+const gameManager = new GameManager({
+  sendToPlayer,
+  broadcastToGame: broadcastToLobby,
+  getPlayerName: (id: string) => playerNames.get(id) ?? 'Unknown',
+});
+
+function startCountdown(lobbyId: string, seconds: number): void {
+  const lobby = lobbyManager.getLobby(lobbyId);
+  if (!lobby) return;
+
+  const playerIds = lobby.players.map(p => p.id);
+  gameManager.createGame(lobbyId, playerIds);
+  lobby.status = 'in_game';
+
+  let remaining = seconds;
+
+  const tick = (): void => {
+    if (remaining > 0) {
+      broadcastToLobby(lobbyId, { type: 'countdown_tick', remaining });
+      remaining--;
+      setTimeout(tick, 1000);
+    } else {
+      gameManager.startGame(lobbyId);
+    }
+  };
+
+  tick();
+}
+
+function resetLobbyAfterMatch(lobbyId: string): void {
+  const lobby = lobbyManager.getLobby(lobbyId);
+  if (!lobby) return;
+  lobby.status = 'waiting';
+  for (const p of lobby.players) {
+    p.ready = false;
+  }
+  broadcastToLobby(lobbyId, { type: 'lobby_update', lobby });
+  gameManager.removeGame(lobbyId);
 }
 
 wss.on('listening', () => {
@@ -221,6 +269,28 @@ wss.on('connection', (ws: WebSocket) => {
             sendEvent(socket, { type: 'game_starting', countdown });
           }
         }
+        // Start countdown and create game instance
+        startCountdown(lobbyId, countdown);
+        break;
+      }
+
+      case 'lines_cleared': {
+        const lobbyId = lobbyManager.getPlayerLobbyId(playerId);
+        if (!lobbyId) break;
+        gameManager.handleLinesCleared(lobbyId, playerId, event.count);
+        break;
+      }
+
+      case 'player_dead': {
+        const lobbyId = lobbyManager.getPlayerLobbyId(playerId);
+        if (!lobbyId) break;
+        gameManager.handlePlayerDead(lobbyId, playerId);
+        // Check if match ended and reset lobby
+        const game = gameManager.getGame(lobbyId);
+        if (game && game.status === 'finished') {
+          // Delay reset to let clients show results
+          setTimeout(() => resetLobbyAfterMatch(lobbyId), 5000);
+        }
         break;
       }
 
@@ -256,9 +326,17 @@ wss.on('connection', (ws: WebSocket) => {
   ws.on('close', () => {
     console.log(`[server] Player disconnected: ${playerId}`);
 
-    // Auto-leave lobby on disconnect
+    // Handle disconnect during active game
     const lobbyId = lobbyManager.getPlayerLobbyId(playerId);
     if (lobbyId) {
+      const game = gameManager.getGame(lobbyId);
+      if (game && game.status === 'playing') {
+        gameManager.handlePlayerDead(lobbyId, playerId);
+        if (game.status === 'finished') {
+          setTimeout(() => resetLobbyAfterMatch(lobbyId), 5000);
+        }
+      }
+
       const lobbyBefore = lobbyManager.getLobby(lobbyId);
       const playersBefore = lobbyBefore ? [...lobbyBefore.players] : [];
 
@@ -286,4 +364,4 @@ wss.on('connection', (ws: WebSocket) => {
   });
 });
 
-export { wss, lobbyManager, playerSockets, playerNames };
+export { wss, lobbyManager, gameManager, playerSockets, playerNames };
