@@ -94,6 +94,28 @@ export function clearLines(board: Board): { board: Board; linesCleared: number }
   };
 }
 
+export const GARBAGE_CELL = 8;
+
+/**
+ * Insert garbage rows at the bottom of the board. Existing rows shift up.
+ * Each garbage row is filled with GARBAGE_CELL except for one gap column.
+ * Returns a new board (immutable).
+ */
+export function insertGarbageRows(board: Board, count: number, gapColumn: number): Board {
+  if (count <= 0) return cloneBoard(board);
+
+  const garbageRow = (): Cell[] => {
+    const row = Array(BOARD_WIDTH).fill(GARBAGE_CELL) as Cell[];
+    row[gapColumn] = 0;
+    return row;
+  };
+
+  const garbageRows = Array.from({ length: count }, garbageRow);
+  // Remove top rows to maintain height, append garbage at bottom
+  const shifted = board.slice(count).map(row => [...row]);
+  return [...shifted, ...garbageRows];
+}
+
 /**
  * Check if the game is over: the given piece cannot be placed at the spawn position.
  */
