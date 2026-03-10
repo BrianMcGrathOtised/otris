@@ -21,6 +21,8 @@ describe('protocol validation', () => {
       'transfer_host',
       'list_lobbies',
       'set_name',
+      'lines_cleared',
+      'player_dead',
     ];
 
     it.each(validTypes)('accepts valid client event type: %s', (type) => {
@@ -48,6 +50,11 @@ describe('protocol validation', () => {
       'error',
       'lobby_list',
       'welcome',
+      'garbage_received',
+      'player_eliminated',
+      'match_end',
+      'countdown_tick',
+      'game_started',
     ];
 
     it.each(validTypes)('accepts valid server event type: %s', (type) => {
@@ -95,6 +102,20 @@ describe('protocol validation', () => {
       );
       expect(event).not.toBeNull();
       expect(event!.type).toBe('set_name');
+    });
+
+    it('parses a lines_cleared event', () => {
+      const event = parseClientEvent(
+        JSON.stringify({ type: 'lines_cleared', count: 4 }),
+      );
+      expect(event).not.toBeNull();
+      expect(event!.type).toBe('lines_cleared');
+    });
+
+    it('parses a player_dead event', () => {
+      const event = parseClientEvent(JSON.stringify({ type: 'player_dead' }));
+      expect(event).not.toBeNull();
+      expect(event!.type).toBe('player_dead');
     });
 
     it('returns null for invalid JSON', () => {

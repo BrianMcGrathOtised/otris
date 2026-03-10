@@ -55,6 +55,15 @@ export interface SetNameEvent {
   name: string;
 }
 
+export interface LinesClearedEvent {
+  type: 'lines_cleared';
+  count: number;
+}
+
+export interface PlayerDeadEvent {
+  type: 'player_dead';
+}
+
 export type ClientEvent =
   | CreateLobbyEvent
   | JoinLobbyEvent
@@ -66,7 +75,9 @@ export type ClientEvent =
   | ChangeSettingsEvent
   | TransferHostEvent
   | ListLobbiesEvent
-  | SetNameEvent;
+  | SetNameEvent
+  | LinesClearedEvent
+  | PlayerDeadEvent;
 
 // --- Server -> Client events ---
 
@@ -122,6 +133,34 @@ export interface WelcomeEvent {
   playerId: string;
 }
 
+export interface GarbageReceivedEvent {
+  type: 'garbage_received';
+  fromPlayerId: string;
+  lines: number;
+}
+
+export interface PlayerEliminatedEvent {
+  type: 'player_eliminated';
+  playerId: string;
+  placement: number;
+  alivePlayers: string[];
+}
+
+export interface MatchEndEvent {
+  type: 'match_end';
+  winnerId: string;
+  winnerName: string;
+}
+
+export interface CountdownTickEvent {
+  type: 'countdown_tick';
+  remaining: number;
+}
+
+export interface GameStartedEvent {
+  type: 'game_started';
+}
+
 export type ServerEvent =
   | LobbyUpdateEvent
   | PlayerJoinedEvent
@@ -130,7 +169,12 @@ export type ServerEvent =
   | GameStartingEvent
   | ErrorEvent
   | LobbyListEvent
-  | WelcomeEvent;
+  | WelcomeEvent
+  | GarbageReceivedEvent
+  | PlayerEliminatedEvent
+  | MatchEndEvent
+  | CountdownTickEvent
+  | GameStartedEvent;
 
 // --- Validation helpers ---
 
@@ -146,6 +190,8 @@ const CLIENT_EVENT_TYPES: ReadonlySet<string> = new Set<ClientEvent['type']>([
   'transfer_host',
   'list_lobbies',
   'set_name',
+  'lines_cleared',
+  'player_dead',
 ]);
 
 const SERVER_EVENT_TYPES: ReadonlySet<string> = new Set<ServerEvent['type']>([
@@ -157,6 +203,11 @@ const SERVER_EVENT_TYPES: ReadonlySet<string> = new Set<ServerEvent['type']>([
   'error',
   'lobby_list',
   'welcome',
+  'garbage_received',
+  'player_eliminated',
+  'match_end',
+  'countdown_tick',
+  'game_started',
 ]);
 
 export function isValidClientEventType(type: string): boolean {
