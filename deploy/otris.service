@@ -1,0 +1,18 @@
+[Unit]
+Description=Otris Multiplayer Game Server
+After=network.target
+
+[Service]
+Type=simple
+User=otris
+WorkingDirectory=/opt/otris
+ExecStart=/usr/bin/node server/server/index.js
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
