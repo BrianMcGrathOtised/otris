@@ -84,6 +84,14 @@ export function clearLobby(state: LobbyState): LobbyState {
   return { ...state, lobby: null, chatMessages: [], screen: 'menu' };
 }
 
+/** Return to lobby after a match — keep lobby if it exists, clear chat. */
+export function returnToLobby(state: LobbyState): LobbyState {
+  if (state.lobby) {
+    return { ...state, chatMessages: [], screen: 'lobby' };
+  }
+  return { ...state, chatMessages: [], screen: 'menu' };
+}
+
 export function addChatMessage(state: LobbyState, event: ChatMessageEvent): LobbyState {
   const msg: ChatMessage = {
     playerId: event.playerId,

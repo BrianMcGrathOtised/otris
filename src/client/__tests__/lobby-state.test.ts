@@ -6,6 +6,7 @@ import {
   setScreen,
   updateLobby,
   clearLobby,
+  returnToLobby,
   addChatMessage,
   updateLobbyList,
   setError,
@@ -102,6 +103,42 @@ describe('lobby-state', () => {
       expect(next.lobby).toBeNull();
       expect(next.chatMessages).toEqual([]);
       expect(next.screen).toBe('menu');
+    });
+
+    it('preserves playerName when clearing lobby', () => {
+      let state = createInitialState();
+      state = setPlayerName(state, 'Alice');
+      state = updateLobby(state, makeLobby());
+      const next = clearLobby(state);
+      expect(next.playerName).toBe('Alice');
+    });
+  });
+
+  describe('returnToLobby', () => {
+    it('clears chat but keeps lobby and stays on lobby screen', () => {
+      let state = createInitialState();
+      state = setPlayerName(state, 'Alice');
+      state = updateLobby(state, makeLobby());
+      state = addChatMessage(state, {
+        type: 'chat_message',
+        playerId: 'p1',
+        playerName: 'Alice',
+        message: 'hi',
+        timestamp: 1000,
+      });
+      const next = returnToLobby(state);
+      expect(next.lobby).not.toBeNull();
+      expect(next.screen).toBe('lobby');
+      expect(next.chatMessages).toEqual([]);
+      expect(next.playerName).toBe('Alice');
+    });
+
+    it('falls back to menu screen if no lobby exists', () => {
+      let state = createInitialState();
+      state = setPlayerName(state, 'Alice');
+      const next = returnToLobby(state);
+      expect(next.screen).toBe('menu');
+      expect(next.playerName).toBe('Alice');
     });
   });
 

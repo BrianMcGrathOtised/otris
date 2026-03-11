@@ -16,6 +16,7 @@ import {
   setScreen,
   updateLobby,
   clearLobby,
+  returnToLobby,
   addChatMessage,
   updateLobbyList,
   setError,
@@ -359,6 +360,14 @@ function renderState(): void {
     }
   }
 
+  // Menu: restore name input if player already has a name
+  if (state.screen === 'menu' && state.playerName) {
+    const nameInput = document.getElementById('name-input') as HTMLInputElement | null;
+    if (nameInput && !nameInput.value) {
+      nameInput.value = state.playerName;
+    }
+  }
+
   // Menu: lobby list
   const lobbyListEl = document.getElementById('lobby-list');
   if (lobbyListEl && state.screen === 'menu') {
@@ -607,8 +616,13 @@ export function initLobbyUI(options: LobbyUIOptions): { destroy: () => void } {
 export function showLobbyUI(): void {
   if (lobbyRoot) {
     lobbyRoot.style.display = 'block';
-    setState(clearLobby(state));
-    send({ type: 'list_lobbies' });
+    // If we have an active lobby (returning from match), stay on lobby screen
+    if (state.lobby) {
+      setState(returnToLobby(state));
+    } else {
+      setState(clearLobby(state));
+      send({ type: 'list_lobbies' });
+    }
   }
 }
 
