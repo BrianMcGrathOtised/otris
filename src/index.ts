@@ -52,12 +52,15 @@ function scaleCanvas(): void {
   canvas.style.transform = `scale(${scale})`;
   canvas.style.transformOrigin = 'top left';
 
-  // Center on the main board area (hold + board + next), not the full canvas
-  // so the opponent panel extends to the right without shifting the board off-center
-  const boardCenterX = (SIDE_PANEL_WIDTH + BOARD_PIXEL_WIDTH / 2) * scale;
+  // Position absolutely to avoid double-centering from body's flexbox.
+  // Center on the main game area (hold+board+next = 540px) so the opponent
+  // panel extends to the right without shifting the board off-center.
+  canvas.style.position = 'absolute';
+  const mainAreaWidth = SIDE_PANEL_WIDTH + BOARD_PIXEL_WIDTH + SIDE_PANEL_WIDTH;
+  const scaledMainW = mainAreaWidth * scale;
   const scaledH = CANVAS_HEIGHT * scale;
-  canvas.style.marginLeft = `${(window.innerWidth / 2) - boardCenterX}px`;
-  canvas.style.marginTop = `${(window.innerHeight - scaledH) / 2}px`;
+  canvas.style.left = `${(window.innerWidth - scaledMainW) / 2}px`;
+  canvas.style.top = `${(window.innerHeight - scaledH) / 2}px`;
 }
 
 window.addEventListener('resize', scaleCanvas);
@@ -323,6 +326,8 @@ conn.onEvent((event: ServerEvent) => {
       // Countdown finished — allow game logic to run
       waitingForStart = false;
       showCountdown(0);
+      // Send initial board so opponents see our empty board immediately
+      conn.send({ type: 'board_update', board: state.board });
       break;
 
     case 'garbage_received':
