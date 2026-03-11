@@ -446,7 +446,7 @@ export function getOpponentLayout(
 
   return {
     x: OPPONENT_PANEL_X + 5 + col * colWidth,
-    y: PADDING_TOP + row * rowHeight,
+    y: PADDING_TOP + 16 + row * rowHeight,
   };
 }
 
@@ -460,7 +460,8 @@ function drawOpponentBoards(
   ctx.fillStyle = '#666';
   ctx.font = '10px monospace';
   ctx.textAlign = 'left';
-  ctx.fillText('OPPONENTS', OPPONENT_PANEL_X + 5, PADDING_TOP - 6);
+  ctx.textBaseline = 'top';
+  ctx.fillText('OPPONENTS', OPPONENT_PANEL_X + 5, PADDING_TOP);
 
   for (let i = 0; i < opponents.length; i++) {
     const opp = opponents[i]!;
@@ -470,10 +471,11 @@ function drawOpponentBoards(
     ctx.fillStyle = opp.alive ? '#aaa' : '#555';
     ctx.font = '9px monospace';
     ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
     ctx.fillText(
       opp.name.length > 8 ? opp.name.slice(0, 7) + '…' : opp.name,
       x,
-      y + 10,
+      y,
     );
 
     const boardY = y + OPPONENT_NAME_HEIGHT;

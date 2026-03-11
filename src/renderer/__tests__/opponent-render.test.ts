@@ -81,7 +81,7 @@ describe('getOpponentLayout', () => {
   it('positions start at OPPONENT_PANEL_X offset', () => {
     const pos = getOpponentLayout(0, 1);
     expect(pos.x).toBe(OPPONENT_PANEL_X + 5);
-    expect(pos.y).toBe(PADDING_TOP);
+    expect(pos.y).toBe(PADDING_TOP + 16);
   });
 
   it('all 9 opponents fit within canvas bounds', () => {
