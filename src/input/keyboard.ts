@@ -93,6 +93,10 @@ function dasLoop(timestamp: number): void {
 function onKeyDown(e: KeyboardEvent): void {
   if (!host) return;
 
+  // Don't intercept keys when an input or textarea is focused (e.g. lobby name field)
+  const tag = (e.target as HTMLElement)?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
   // Prevent default for game keys to avoid page scrolling
   const gameKeys = [
     'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
@@ -162,6 +166,9 @@ function onKeyDown(e: KeyboardEvent): void {
 
 function onKeyUp(e: KeyboardEvent): void {
   if (!host) return;
+
+  const tag = (e.target as HTMLElement)?.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
   switch (e.key) {
     case 'ArrowLeft':
