@@ -1,12 +1,63 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { randomUUID } from 'node:crypto';
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { readFileSync, existsSync, statSync } from 'node:fs';
+import { join, extname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseClientEvent, type ServerEvent } from '../shared/protocol.js';
 import { LobbyManager } from './lobby.js';
 import { GameManager } from './game-manager.js';
 
 const PORT = parseInt(process.env['PORT'] ?? '3000', 10);
+const IS_PROD = process.env['NODE_ENV'] === 'production';
 
-const wss = new WebSocketServer({ port: PORT });
+// Resolve the static file directory (dist/ relative to project root)
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+const STATIC_DIR = IS_PROD
+  ? join(__dirname, '..', '..', 'client')
+  : '';
+
+const MIME_TYPES: Record<string, string> = {
+  '.html': 'text/html',
+  '.js': 'application/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+};
+
+function serveStatic(req: IncomingMessage, res: ServerResponse): void {
+  if (!IS_PROD || !STATIC_DIR) {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('Otris server running. Use Vite dev server for the client.');
+    return;
+  }
+
+  const url = req.url === '/' ? '/index.html' : req.url ?? '/index.html';
+  const safePath = url.split('?')[0]!.replace(/\.\./g, '');
+  let filePath = join(STATIC_DIR, safePath);
+
+  // SPA fallback: serve index.html for paths without extensions
+  if (!existsSync(filePath) || !statSync(filePath).isFile()) {
+    filePath = join(STATIC_DIR, 'index.html');
+  }
+
+  if (!existsSync(filePath)) {
+    res.writeHead(404);
+    res.end('Not found');
+    return;
+  }
+
+  const ext = extname(filePath);
+  const contentType = MIME_TYPES[ext] ?? 'application/octet-stream';
+  const content = readFileSync(filePath);
+  res.writeHead(200, { 'Content-Type': contentType });
+  res.end(content);
+}
+
+const httpServer = createServer(serveStatic);
+const wss = new WebSocketServer({ server: httpServer });
 const lobbyManager = new LobbyManager();
 
 // Map player IDs to their WebSocket connections
@@ -81,8 +132,8 @@ function resetLobbyAfterMatch(lobbyId: string): void {
   gameManager.removeGame(lobbyId);
 }
 
-wss.on('listening', () => {
-  console.log(`[server] WebSocket server listening on port ${PORT}`);
+httpServer.listen(PORT, () => {
+  console.log(`[server] Otris server listening on port ${PORT}${IS_PROD ? ' (production)' : ' (development)'}`);
 });
 
 wss.on('connection', (ws: WebSocket) => {
@@ -339,7 +390,8 @@ wss.on('connection', (ws: WebSocket) => {
       const game = gameManager.getGame(lobbyId);
       if (game && game.status === 'playing') {
         gameManager.handlePlayerDead(lobbyId, playerId);
-        if (game.status === 'finished') {
+        const updatedGame = gameManager.getGame(lobbyId);
+        if (updatedGame && updatedGame.status === 'finished') {
           setTimeout(() => resetLobbyAfterMatch(lobbyId), 5000);
         }
       }

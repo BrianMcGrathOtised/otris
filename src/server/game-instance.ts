@@ -9,7 +9,7 @@ export type GameStatus = 'countdown' | 'playing' | 'finished';
 export class GameInstance {
   readonly lobbyId: string;
   private players: Map<string, GamePlayer>;
-  private totalPlayers: number;
+  readonly totalPlayers: number;
   status: GameStatus;
 
   constructor(lobbyId: string, playerIds: string[]) {

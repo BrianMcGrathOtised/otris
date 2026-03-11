@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc -p tsconfig.server.json && vite build",
     "preview": "vite preview",
     "server": "tsx src/server/index.ts",
     "dev:server": "tsx watch src/server/index.ts",
+    "start": "NODE_ENV=production node dist/server/server/index.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },

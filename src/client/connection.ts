@@ -88,4 +88,8 @@ export function connect(url: string): Connection {
 // Default server URL
 // ---------------------------------------------------------------------------
 
-export const DEFAULT_WS_URL = 'ws://localhost:3000';
+/** In production, connect to the same host. In dev, connect to localhost:3000. */
+export const DEFAULT_WS_URL =
+  typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+    ? `ws://${window.location.host}`
+    : 'ws://localhost:3000';
