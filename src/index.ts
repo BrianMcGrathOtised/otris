@@ -97,7 +97,9 @@ function showCountdown(remaining: number): void {
 
 let lastTime = 0;
 let backgroundTickId: ReturnType<typeof setInterval> | null = null;
+let lastBackgroundTime = 0;
 const BACKGROUND_TICK_MS = 50;
+const MAX_TICK_STEP = 100; // same cap as RAF loop
 
 /** Advance game logic by deltaMs (shared by RAF loop and background fallback). */
 function advanceGame(deltaMs: number): void {
@@ -166,8 +168,18 @@ document.addEventListener('visibilitychange', () => {
     // Tab hidden — start interval-based ticking (no rendering)
     cancelAnimationFrame(animFrameId);
     animFrameId = 0;
+    lastBackgroundTime = Date.now();
     backgroundTickId = setInterval(() => {
-      advanceGame(BACKGROUND_TICK_MS);
+      // Browsers throttle background intervals to ~1000ms.
+      // Calculate real elapsed time and catch up in capped steps.
+      const now = Date.now();
+      let elapsed = now - lastBackgroundTime;
+      lastBackgroundTime = now;
+      while (elapsed > 0) {
+        const step = Math.min(elapsed, MAX_TICK_STEP);
+        advanceGame(step);
+        elapsed -= step;
+      }
     }, BACKGROUND_TICK_MS);
   } else {
     // Tab visible — stop interval, resume RAF
