@@ -158,7 +158,7 @@ function gameLoop(timestamp: number): void {
   const cappedDelta = Math.min(delta, 100);
   advanceGame(cappedDelta);
 
-  render(ctx, state);
+  render(ctx, state, getOpponents(opponents));
 
   // Show overlay based on match result
   if (matchResult && !document.getElementById('game-overlay')) {

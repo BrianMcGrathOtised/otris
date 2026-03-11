@@ -13,6 +13,7 @@ import type { PieceType } from '../game/tetrominoes';
 import type { GameState } from '../game/game';
 import { getPieceColor } from './colors';
 import type { PieceColorSet } from './colors';
+import type { OpponentState } from '../client/opponent-state';
 import {
   CELL_SIZE,
   BOARD_PIXEL_WIDTH,
@@ -28,6 +29,12 @@ import {
   NEXT_Y,
   NEXT_SIZE,
   MINI_CELL_SIZE,
+  OPPONENT_CELL_SIZE,
+  OPPONENT_BOARD_WIDTH,
+  OPPONENT_BOARD_HEIGHT,
+  OPPONENT_PANEL_X,
+  OPPONENT_MINI_BOARD_SPACING,
+  PADDING_TOP,
 } from './layout';
 import { isValidPosition } from '../game/board';
 
@@ -411,6 +418,105 @@ function drawTitle(ctx: CanvasRenderingContext2D): void {
 }
 
 // ---------------------------------------------------------------------------
+// Opponent mini-boards
+// ---------------------------------------------------------------------------
+
+/** Name label height above each mini-board (pixels). */
+const OPPONENT_NAME_HEIGHT = 14;
+
+/**
+ * Calculate the pixel position for an opponent mini-board at a given index.
+ * Uses a 2-column grid layout when there are 4+ opponents.
+ * Exported for testing.
+ */
+export function getOpponentLayout(
+  index: number,
+  total: number,
+): { x: number; y: number } {
+  const cols = total >= 4 ? 2 : 1;
+  const colWidth = OPPONENT_BOARD_WIDTH + OPPONENT_MINI_BOARD_SPACING;
+  const rowHeight = OPPONENT_NAME_HEIGHT + OPPONENT_BOARD_HEIGHT + OPPONENT_MINI_BOARD_SPACING;
+
+  const col = index % cols;
+  const row = Math.floor(index / cols);
+
+  return {
+    x: OPPONENT_PANEL_X + 5 + col * colWidth,
+    y: PADDING_TOP + row * rowHeight,
+  };
+}
+
+function drawOpponentBoards(
+  ctx: CanvasRenderingContext2D,
+  opponents: readonly OpponentState[],
+): void {
+  if (opponents.length === 0) return;
+
+  // Panel label
+  ctx.fillStyle = '#666';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('OPPONENTS', OPPONENT_PANEL_X + 5, PADDING_TOP - 6);
+
+  for (let i = 0; i < opponents.length; i++) {
+    const opp = opponents[i]!;
+    const { x, y } = getOpponentLayout(i, opponents.length);
+
+    // Player name
+    ctx.fillStyle = opp.alive ? '#aaa' : '#555';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(
+      opp.name.length > 8 ? opp.name.slice(0, 7) + '…' : opp.name,
+      x,
+      y + 10,
+    );
+
+    const boardY = y + OPPONENT_NAME_HEIGHT;
+
+    // Mini-board background
+    ctx.fillStyle = '#0d0d0d';
+    ctx.fillRect(x, boardY, OPPONENT_BOARD_WIDTH, OPPONENT_BOARD_HEIGHT);
+
+    // Draw board cells (skip hidden rows)
+    if (opp.board.length > 0) {
+      for (let row = HIDDEN_ROWS; row < TOTAL_ROWS && row < opp.board.length; row++) {
+        const boardRow = opp.board[row];
+        if (!boardRow) continue;
+        for (let col = 0; col < BOARD_WIDTH && col < boardRow.length; col++) {
+          const cell = boardRow[col]!;
+          if (cell === 0) continue;
+
+          const px = x + col * OPPONENT_CELL_SIZE;
+          const py = boardY + (row - HIDDEN_ROWS) * OPPONENT_CELL_SIZE;
+          const colors = getPieceColor(cell);
+          ctx.fillStyle = colors.base;
+          ctx.fillRect(px, py, OPPONENT_CELL_SIZE - 1, OPPONENT_CELL_SIZE - 1);
+        }
+      }
+    }
+
+    // Board border
+    ctx.strokeStyle = opp.alive ? '#333' : '#222';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, boardY, OPPONENT_BOARD_WIDTH, OPPONENT_BOARD_HEIGHT);
+
+    // Dead overlay
+    if (!opp.alive) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+      ctx.fillRect(x, boardY, OPPONENT_BOARD_WIDTH, OPPONENT_BOARD_HEIGHT);
+
+      ctx.fillStyle = '#ff1744';
+      ctx.font = 'bold 8px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('DEAD', x + OPPONENT_BOARD_WIDTH / 2, boardY + OPPONENT_BOARD_HEIGHT / 2 + 3);
+      ctx.restore();
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Main render function
 // ---------------------------------------------------------------------------
 
@@ -418,7 +524,11 @@ function drawTitle(ctx: CanvasRenderingContext2D): void {
  * Render the complete game frame to a CanvasRenderingContext2D.
  * This is a pure rendering function — it reads state but does not mutate it.
  */
-export function render(ctx: CanvasRenderingContext2D, state: GameState): void {
+export function render(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  opponents: readonly OpponentState[] = [],
+): void {
   // Clear canvas
   ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
   ctx.fillStyle = '#0a0a0a';
@@ -431,6 +541,7 @@ export function render(ctx: CanvasRenderingContext2D, state: GameState): void {
   drawHoldPanel(ctx, state);
   drawNextPanel(ctx, state);
   drawHUD(ctx, state);
+  drawOpponentBoards(ctx, opponents);
 
   if (state.gameOver) {
     drawGameOverOverlay(ctx);

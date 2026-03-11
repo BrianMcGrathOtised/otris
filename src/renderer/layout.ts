@@ -22,8 +22,18 @@ export const SIDE_PANEL_WIDTH = 120;
 export const PADDING_TOP = 40;
 export const PADDING_BOTTOM = 80;
 
+/** Opponent mini-board constants. */
+export const OPPONENT_CELL_SIZE = 4;
+export const OPPONENT_BOARD_WIDTH = OPPONENT_CELL_SIZE * BOARD_WIDTH;   // 40
+export const OPPONENT_BOARD_HEIGHT = OPPONENT_CELL_SIZE * BOARD_HEIGHT; // 80
+export const OPPONENT_MINI_BOARD_SPACING = 8;
+export const OPPONENT_PANEL_WIDTH = 110;
+
+/** Opponent panel X position (starts after the next piece panel). */
+export const OPPONENT_PANEL_X = SIDE_PANEL_WIDTH + BOARD_PIXEL_WIDTH + SIDE_PANEL_WIDTH;
+
 /** Total canvas dimensions. */
-export const CANVAS_WIDTH = SIDE_PANEL_WIDTH + BOARD_PIXEL_WIDTH + SIDE_PANEL_WIDTH; // 540
+export const CANVAS_WIDTH = OPPONENT_PANEL_X + OPPONENT_PANEL_WIDTH; // 650
 export const CANVAS_HEIGHT = PADDING_TOP + BOARD_PIXEL_HEIGHT + PADDING_BOTTOM;      // 720
 
 /** Top-left pixel position of the board area on the canvas. */
