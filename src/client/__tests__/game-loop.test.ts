@@ -44,3 +44,27 @@ describe('Background tab catch-up', () => {
     expect(after1.gravityTimer).toBeGreaterThan(state.gravityTimer);
   });
 });
+
+describe('Background fallback tick simulation', () => {
+  it('fixed-interval ticks keep game progressing (simulates setInterval fallback)', () => {
+    const state = createGame();
+    const INTERVAL_MS = 50;
+    let gameState = state;
+    // Simulate 5 interval ticks (250ms of background execution)
+    for (let i = 0; i < 5; i++) {
+      gameState = tick(gameState, INTERVAL_MS);
+    }
+    // Game state should have advanced
+    expect(gameState.gravityTimer).toBeGreaterThan(0);
+  });
+
+  it('resuming after pause with lastTime reset avoids delta spike', () => {
+    const state = createGame();
+    // Simulate: last frame was at t=1000, tab hidden for 5 seconds, now t=6000
+    // Without reset: delta = 5000ms (huge jump)
+    // With reset (lastTime = 0): delta = 0 (no jump on first frame back)
+    const noJump = tick(state, 0); // delta = 0 simulates lastTime reset
+    expect(noJump.gravityTimer).toBe(state.gravityTimer);
+    expect(noJump.currentPiece.y).toBe(state.currentPiece.y);
+  });
+});

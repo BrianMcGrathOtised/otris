@@ -96,43 +96,49 @@ function showCountdown(remaining: number): void {
 // ---------------------------------------------------------------------------
 
 let lastTime = 0;
+let backgroundTickId: ReturnType<typeof setInterval> | null = null;
+const BACKGROUND_TICK_MS = 50;
+
+/** Advance game logic by deltaMs (shared by RAF loop and background fallback). */
+function advanceGame(deltaMs: number): void {
+  if (isEliminated || waitingForStart) return;
+
+  const prevState = state;
+  state = tick(state, deltaMs);
+
+  // Check for new line clears and send to server
+  if (state.lines > previousLinesCleared) {
+    const newLines = state.lines - previousLinesCleared;
+    previousLinesCleared = state.lines;
+    conn.send({ type: 'lines_cleared', count: newLines });
+  }
+
+  // Process garbage queue when a piece locks (detected by piece type change or new spawn)
+  if (
+    garbageQueue.length > 0 &&
+    prevState.currentPiece.type !== state.currentPiece.type &&
+    state.currentPiece.y === 0
+  ) {
+    for (const g of garbageQueue) {
+      const gapColumn = Math.floor(Math.random() * BOARD_WIDTH);
+      state = { ...state, board: insertGarbageRows(state.board, g.lines, gapColumn) };
+    }
+    garbageQueue = [];
+  }
+
+  // Detect game over and notify server
+  if (state.gameOver && !isEliminated) {
+    isEliminated = true;
+    conn.send({ type: 'player_dead' });
+  }
+}
 
 function gameLoop(timestamp: number): void {
   const delta = lastTime === 0 ? 0 : timestamp - lastTime;
   lastTime = timestamp;
 
   const cappedDelta = Math.min(delta, 100);
-
-  if (!isEliminated && !waitingForStart) {
-    const prevState = state;
-    state = tick(state, cappedDelta);
-
-    // Check for new line clears and send to server
-    if (state.lines > previousLinesCleared) {
-      const newLines = state.lines - previousLinesCleared;
-      previousLinesCleared = state.lines;
-      conn.send({ type: 'lines_cleared', count: newLines });
-    }
-
-    // Process garbage queue when a piece locks (detected by piece type change or new spawn)
-    if (
-      garbageQueue.length > 0 &&
-      prevState.currentPiece.type !== state.currentPiece.type &&
-      state.currentPiece.y === 0
-    ) {
-      for (const g of garbageQueue) {
-        const gapColumn = Math.floor(Math.random() * BOARD_WIDTH);
-        state = { ...state, board: insertGarbageRows(state.board, g.lines, gapColumn) };
-      }
-      garbageQueue = [];
-    }
-
-    // Detect game over and notify server
-    if (state.gameOver && !isEliminated) {
-      isEliminated = true;
-      conn.send({ type: 'player_dead' });
-    }
-  }
+  advanceGame(cappedDelta);
 
   render(ctx, state);
 
@@ -152,6 +158,28 @@ function gameLoop(timestamp: number): void {
   animFrameId = requestAnimationFrame(gameLoop);
 }
 
+// Background tab fallback: keep game ticking via setInterval when RAF is paused
+document.addEventListener('visibilitychange', () => {
+  if (!animFrameId) return; // game not running
+
+  if (document.hidden) {
+    // Tab hidden — start interval-based ticking (no rendering)
+    cancelAnimationFrame(animFrameId);
+    animFrameId = 0;
+    backgroundTickId = setInterval(() => {
+      advanceGame(BACKGROUND_TICK_MS);
+    }, BACKGROUND_TICK_MS);
+  } else {
+    // Tab visible — stop interval, resume RAF
+    if (backgroundTickId !== null) {
+      clearInterval(backgroundTickId);
+      backgroundTickId = null;
+    }
+    lastTime = 0; // reset to avoid delta spike on first frame
+    animFrameId = requestAnimationFrame(gameLoop);
+  }
+});
+
 function startGame(): void {
   canvas.style.display = 'block';
   state = createGame();
@@ -170,6 +198,10 @@ function stopGame(): void {
   if (animFrameId) {
     cancelAnimationFrame(animFrameId);
     animFrameId = 0;
+  }
+  if (backgroundTickId !== null) {
+    clearInterval(backgroundTickId);
+    backgroundTickId = null;
   }
   removeOverlays();
 }
