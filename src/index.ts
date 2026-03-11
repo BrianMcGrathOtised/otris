@@ -9,7 +9,7 @@
 import { createGame, tick } from './game/game';
 import type { GameState } from './game/game';
 import { render } from './renderer/render';
-import { CANVAS_WIDTH, CANVAS_HEIGHT } from './renderer/layout';
+import { CANVAS_WIDTH, CANVAS_HEIGHT, SIDE_PANEL_WIDTH, BOARD_PIXEL_WIDTH } from './renderer/layout';
 import { initKeyboard } from './input/keyboard';
 import { connect, DEFAULT_WS_URL } from './client/connection';
 import { initLobbyUI, showLobbyUI } from './client/lobby-ui';
@@ -52,10 +52,11 @@ function scaleCanvas(): void {
   canvas.style.transform = `scale(${scale})`;
   canvas.style.transformOrigin = 'top left';
 
-  // Center the canvas accounting for scaled size
-  const scaledW = CANVAS_WIDTH * scale;
+  // Center on the main board area (hold + board + next), not the full canvas
+  // so the opponent panel extends to the right without shifting the board off-center
+  const boardCenterX = (SIDE_PANEL_WIDTH + BOARD_PIXEL_WIDTH / 2) * scale;
   const scaledH = CANVAS_HEIGHT * scale;
-  canvas.style.marginLeft = `${(window.innerWidth - scaledW) / 2}px`;
+  canvas.style.marginLeft = `${(window.innerWidth / 2) - boardCenterX}px`;
   canvas.style.marginTop = `${(window.innerHeight - scaledH) / 2}px`;
 }
 
