@@ -274,6 +274,13 @@ wss.on('connection', (ws: WebSocket) => {
         break;
       }
 
+      case 'board_update': {
+        const lobbyId = lobbyManager.getPlayerLobbyId(playerId);
+        if (!lobbyId) break;
+        gameManager.handleBoardUpdate(lobbyId, playerId, event.board);
+        break;
+      }
+
       case 'lines_cleared': {
         const lobbyId = lobbyManager.getPlayerLobbyId(playerId);
         if (!lobbyId) break;

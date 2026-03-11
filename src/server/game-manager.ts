@@ -4,7 +4,7 @@ import type { ServerEvent } from '../shared/protocol.js';
 
 export interface GameEventSender {
   sendToPlayer(playerId: string, event: ServerEvent): void;
-  broadcastToGame(lobbyId: string, event: ServerEvent): void;
+  broadcastToGame(lobbyId: string, event: ServerEvent, excludePlayerId?: string): void;
   getPlayerName(playerId: string): string;
 }
 
@@ -59,6 +59,22 @@ export class GameManager {
       fromPlayerId: playerId,
       lines: garbage,
     });
+  }
+
+  handleBoardUpdate(lobbyId: string, playerId: string, board: number[][]): void {
+    const game = this.games.get(lobbyId);
+    if (!game || game.status !== 'playing') return;
+
+    const player = game.getPlayer(playerId);
+    const alive = player ? player.alive : false;
+
+    this.sender.broadcastToGame(lobbyId, {
+      type: 'opponent_board',
+      playerId,
+      playerName: this.sender.getPlayerName(playerId),
+      board,
+      alive,
+    }, playerId);
   }
 
   handlePlayerDead(lobbyId: string, playerId: string): void {

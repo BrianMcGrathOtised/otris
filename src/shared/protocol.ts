@@ -64,6 +64,11 @@ export interface PlayerDeadEvent {
   type: 'player_dead';
 }
 
+export interface BoardUpdateEvent {
+  type: 'board_update';
+  board: number[][];
+}
+
 export type ClientEvent =
   | CreateLobbyEvent
   | JoinLobbyEvent
@@ -77,7 +82,8 @@ export type ClientEvent =
   | ListLobbiesEvent
   | SetNameEvent
   | LinesClearedEvent
-  | PlayerDeadEvent;
+  | PlayerDeadEvent
+  | BoardUpdateEvent;
 
 // --- Server -> Client events ---
 
@@ -161,6 +167,14 @@ export interface GameStartedEvent {
   type: 'game_started';
 }
 
+export interface OpponentBoardEvent {
+  type: 'opponent_board';
+  playerId: string;
+  playerName: string;
+  board: number[][];
+  alive: boolean;
+}
+
 export type ServerEvent =
   | LobbyUpdateEvent
   | PlayerJoinedEvent
@@ -174,7 +188,8 @@ export type ServerEvent =
   | PlayerEliminatedEvent
   | MatchEndEvent
   | CountdownTickEvent
-  | GameStartedEvent;
+  | GameStartedEvent
+  | OpponentBoardEvent;
 
 // --- Validation helpers ---
 
@@ -192,6 +207,7 @@ const CLIENT_EVENT_TYPES: ReadonlySet<string> = new Set<ClientEvent['type']>([
   'set_name',
   'lines_cleared',
   'player_dead',
+  'board_update',
 ]);
 
 const SERVER_EVENT_TYPES: ReadonlySet<string> = new Set<ServerEvent['type']>([
@@ -208,6 +224,7 @@ const SERVER_EVENT_TYPES: ReadonlySet<string> = new Set<ServerEvent['type']>([
   'match_end',
   'countdown_tick',
   'game_started',
+  'opponent_board',
 ]);
 
 export function isValidClientEventType(type: string): boolean {

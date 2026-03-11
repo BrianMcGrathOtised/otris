@@ -122,6 +122,63 @@ describe('GameManager', () => {
     });
   });
 
+  describe('handleBoardUpdate', () => {
+    beforeEach(() => {
+      gm.createGame('lobby-1', ['p1', 'p2', 'p3']);
+      gm.startGame('lobby-1');
+    });
+
+    it('broadcasts opponent_board to all other players in the game', () => {
+      const board = [[0, 0], [1, 1]];
+      gm.handleBoardUpdate('lobby-1', 'p1', board);
+      expect(sender.broadcastToGame).toHaveBeenCalledWith(
+        'lobby-1',
+        expect.objectContaining({
+          type: 'opponent_board',
+          playerId: 'p1',
+          board,
+          alive: true,
+        }),
+        'p1',
+      );
+    });
+
+    it('includes player name in the broadcast', () => {
+      const board = [[0]];
+      gm.handleBoardUpdate('lobby-1', 'p1', board);
+      const call = (sender.broadcastToGame as ReturnType<typeof vi.fn>).mock.calls.find(
+        (c: unknown[]) => (c[1] as { type: string }).type === 'opponent_board',
+      );
+      expect(call).toBeDefined();
+      expect(call![1].playerName).toBe('Player-p1');
+    });
+
+    it('reports alive=false for eliminated player', () => {
+      gm.handlePlayerDead('lobby-1', 'p1');
+      const board = [[0]];
+      gm.handleBoardUpdate('lobby-1', 'p1', board);
+      const call = (sender.broadcastToGame as ReturnType<typeof vi.fn>).mock.calls.find(
+        (c: unknown[]) => (c[1] as { type: string }).type === 'opponent_board',
+      );
+      expect(call).toBeDefined();
+      expect(call![1].alive).toBe(false);
+    });
+
+    it('does nothing if game does not exist', () => {
+      const callsBefore = (sender.broadcastToGame as ReturnType<typeof vi.fn>).mock.calls.length;
+      gm.handleBoardUpdate('no-lobby', 'p1', [[0]]);
+      expect((sender.broadcastToGame as ReturnType<typeof vi.fn>).mock.calls.length).toBe(callsBefore);
+    });
+
+    it('does nothing if game is not playing', () => {
+      gm.createGame('lobby-2', ['p4', 'p5']);
+      // game is in countdown, not playing
+      const callsBefore = (sender.broadcastToGame as ReturnType<typeof vi.fn>).mock.calls.length;
+      gm.handleBoardUpdate('lobby-2', 'p4', [[0]]);
+      expect((sender.broadcastToGame as ReturnType<typeof vi.fn>).mock.calls.length).toBe(callsBefore);
+    });
+  });
+
   describe('getGameByPlayer', () => {
     it('finds game by player ID', () => {
       gm.createGame('lobby-1', ['p1', 'p2']);
