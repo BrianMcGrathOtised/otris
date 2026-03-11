@@ -160,7 +160,7 @@ function gameLoop(timestamp: number): void {
 
 // Background tab fallback: keep game ticking via setInterval when RAF is paused
 document.addEventListener('visibilitychange', () => {
-  if (!animFrameId) return; // game not running
+  if (!animFrameId && backgroundTickId === null) return; // game not running
 
   if (document.hidden) {
     // Tab hidden — start interval-based ticking (no rendering)
