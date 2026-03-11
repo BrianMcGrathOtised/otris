@@ -35,6 +35,7 @@ let state: GameState = createGame();
 let animFrameId = 0;
 let garbageQueue: Array<{ lines: number }> = [];
 let isEliminated = false;
+let waitingForStart = false;
 let matchResult: { type: 'eliminated'; placement: number; total: number } | { type: 'winner' } | null = null;
 let previousLinesCleared = 0;
 
@@ -102,7 +103,7 @@ function gameLoop(timestamp: number): void {
 
   const cappedDelta = Math.min(delta, 100);
 
-  if (!isEliminated) {
+  if (!isEliminated && !waitingForStart) {
     const prevState = state;
     state = tick(state, cappedDelta);
 
@@ -157,6 +158,7 @@ function startGame(): void {
   lastTime = 0;
   garbageQueue = [];
   isEliminated = false;
+  waitingForStart = true;
   matchResult = null;
   previousLinesCleared = 0;
   removeOverlays();
@@ -207,7 +209,8 @@ conn.onEvent((event: ServerEvent) => {
       break;
 
     case 'game_started':
-      // Countdown finished, remove countdown display
+      // Countdown finished — allow game logic to run
+      waitingForStart = false;
       showCountdown(0);
       break;
 
