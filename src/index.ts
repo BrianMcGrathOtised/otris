@@ -74,6 +74,7 @@ let isEliminated = false;
 let waitingForStart = false;
 let matchResult: { type: 'eliminated'; placement: number; total: number } | { type: 'winner' } | null = null;
 let previousLinesCleared = 0;
+let lastProcessedBoard: number[][] | null = null;
 let opponents: OpponentMap = createOpponentMap();
 
 // ---------------------------------------------------------------------------
@@ -142,7 +143,6 @@ const MAX_TICK_STEP = 100; // same cap as RAF loop
 function advanceGame(deltaMs: number): void {
   if (isEliminated || waitingForStart) return;
 
-  const prevState = state;
   state = tick(state, deltaMs);
 
   // Check for new line clears and send to server
@@ -152,23 +152,22 @@ function advanceGame(deltaMs: number): void {
     conn.send({ type: 'lines_cleared', count: newLines });
   }
 
-  // Detect piece lock (new piece spawned at top)
-  const pieceLocked =
-    prevState.currentPiece.type !== state.currentPiece.type &&
-    state.currentPiece.y === 0;
-
-  // Send board snapshot to server on piece lock
-  if (pieceLocked) {
-    conn.send({ type: 'board_update', board: state.board });
-  }
-
-  // Process garbage queue when a piece locks
-  if (garbageQueue.length > 0 && pieceLocked) {
-    for (const g of garbageQueue) {
-      const gapColumn = Math.floor(Math.random() * BOARD_WIDTH);
-      state = { ...state, board: insertGarbageRows(state.board, g.lines, gapColumn) };
+  // Detect board change (piece locked via gravity OR hard drop from keyboard).
+  // Comparing references works because board arrays are immutable — a new
+  // reference means a piece was locked, lines were cleared, or garbage arrived.
+  if (state.board !== lastProcessedBoard) {
+    // Process pending garbage on piece lock
+    if (garbageQueue.length > 0) {
+      for (const g of garbageQueue) {
+        const gapColumn = Math.floor(Math.random() * BOARD_WIDTH);
+        state = { ...state, board: insertGarbageRows(state.board, g.lines, gapColumn) };
+      }
+      garbageQueue = [];
     }
-    garbageQueue = [];
+
+    // Send board snapshot to opponents
+    conn.send({ type: 'board_update', board: state.board });
+    lastProcessedBoard = state.board;
   }
 
   // Detect game over and notify server
@@ -261,6 +260,7 @@ function startGame(): void {
   waitingForStart = true;
   matchResult = null;
   previousLinesCleared = 0;
+  lastProcessedBoard = state.board;
   opponents = clearOpponents();
   removeOverlays();
   animFrameId = requestAnimationFrame(gameLoop);
