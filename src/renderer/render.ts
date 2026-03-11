@@ -562,6 +562,24 @@ function drawGarbageQueue(
 }
 
 /**
+ * Draw a red semi-transparent overlay on the board area when the player
+ * is eliminated.  `flashAlpha` decays from 1 to 0 over ~300ms.
+ * Exported for testing.
+ */
+export function drawEliminationFlash(
+  ctx: CanvasRenderingContext2D,
+  flashAlpha: number,
+): void {
+  if (flashAlpha <= 0) return;
+
+  ctx.save();
+  ctx.globalAlpha = flashAlpha * 0.6;
+  ctx.fillStyle = '#ff1744';
+  ctx.fillRect(BOARD_X, BOARD_Y, BOARD_PIXEL_WIDTH, BOARD_PIXEL_HEIGHT);
+  ctx.restore();
+}
+
+/**
  * Draw a red flash border around the board when garbage is received.
  * `flashAlpha` should decay from 1 to 0 over a short duration.
  */
@@ -600,6 +618,7 @@ export function render(
   opponents: readonly OpponentState[] = [],
   garbageQueueSize: number = 0,
   garbageFlashAlpha: number = 0,
+  eliminationFlashAlpha: number = 0,
 ): void {
   // Clear canvas
   ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -616,6 +635,7 @@ export function render(
   drawOpponentBoards(ctx, opponents);
   drawGarbageQueue(ctx, garbageQueueSize);
   drawGarbageFlash(ctx, garbageFlashAlpha);
+  drawEliminationFlash(ctx, eliminationFlashAlpha);
 
   if (state.gameOver) {
     drawGameOverOverlay(ctx);

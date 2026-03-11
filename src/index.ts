@@ -37,6 +37,31 @@ canvas.style.display = 'none';
 const ctx = canvas.getContext('2d')!;
 
 // ---------------------------------------------------------------------------
+// Responsive canvas scaling
+// ---------------------------------------------------------------------------
+
+function scaleCanvas(): void {
+  const padding = 16; // small margin around edges
+  const vw = window.innerWidth - padding * 2;
+  const vh = window.innerHeight - padding * 2;
+
+  const scaleX = vw / CANVAS_WIDTH;
+  const scaleY = vh / CANVAS_HEIGHT;
+  const scale = Math.min(scaleX, scaleY, 1); // never upscale beyond 1
+
+  canvas.style.transform = `scale(${scale})`;
+  canvas.style.transformOrigin = 'top left';
+
+  // Center the canvas accounting for scaled size
+  const scaledW = CANVAS_WIDTH * scale;
+  const scaledH = CANVAS_HEIGHT * scale;
+  canvas.style.marginLeft = `${(window.innerWidth - scaledW) / 2}px`;
+  canvas.style.marginTop = `${(window.innerHeight - scaledH) / 2}px`;
+}
+
+window.addEventListener('resize', scaleCanvas);
+
+// ---------------------------------------------------------------------------
 // Game state
 // ---------------------------------------------------------------------------
 
@@ -44,6 +69,7 @@ let state: GameState = createGame();
 let animFrameId = 0;
 let garbageQueue: Array<{ lines: number }> = [];
 let garbageFlashAlpha = 0;
+let eliminationFlashAlpha = 0;
 let isEliminated = false;
 let waitingForStart = false;
 let matchResult: { type: 'eliminated'; placement: number; total: number } | { type: 'winner' } | null = null;
@@ -148,6 +174,7 @@ function advanceGame(deltaMs: number): void {
   // Detect game over and notify server
   if (state.gameOver && !isEliminated) {
     isEliminated = true;
+    eliminationFlashAlpha = 1; // trigger red flash animation
     conn.send({ type: 'player_dead' });
   }
 }
@@ -164,10 +191,15 @@ function gameLoop(timestamp: number): void {
     garbageFlashAlpha = Math.max(0, garbageFlashAlpha - cappedDelta / 500);
   }
 
+  // Decay elimination flash alpha (~300ms fade)
+  if (eliminationFlashAlpha > 0) {
+    eliminationFlashAlpha = Math.max(0, eliminationFlashAlpha - cappedDelta / 300);
+  }
+
   // Calculate total pending garbage lines
   const totalGarbageLines = garbageQueue.reduce((sum, g) => sum + g.lines, 0);
 
-  render(ctx, state, getOpponents(opponents), totalGarbageLines, garbageFlashAlpha);
+  render(ctx, state, getOpponents(opponents), totalGarbageLines, garbageFlashAlpha, eliminationFlashAlpha);
 
   // Show overlay based on match result
   if (matchResult && !document.getElementById('game-overlay')) {
@@ -219,10 +251,12 @@ document.addEventListener('visibilitychange', () => {
 
 function startGame(): void {
   canvas.style.display = 'block';
+  scaleCanvas();
   state = createGame();
   lastTime = 0;
   garbageQueue = [];
   garbageFlashAlpha = 0;
+  eliminationFlashAlpha = 0;
   isEliminated = false;
   waitingForStart = true;
   matchResult = null;

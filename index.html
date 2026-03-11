@@ -16,7 +16,10 @@
         font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
         color: #e0e0e0;
       }
-      canvas { display: block; }
+      canvas {
+        display: block;
+        transform-origin: top left;
+      }
 
       /* ---- Lobby UI ---- */
       #lobby-root {
@@ -236,6 +239,32 @@
       @keyframes countdown-pulse {
         from { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
         to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+      }
+
+      /* Responsive adjustments for smaller screens */
+      @media (max-width: 640px) {
+        #lobby-root {
+          padding: 12px;
+        }
+        .lobby-title {
+          font-size: 2rem;
+          letter-spacing: 0.15em;
+        }
+        .lobby-subtitle {
+          font-size: 0.85rem;
+        }
+        .lobby-list {
+          max-height: 150px;
+        }
+        .chat-messages {
+          max-height: 100px;
+        }
+      }
+
+      @media (max-height: 500px) {
+        .countdown-display {
+          font-size: 5rem;
+        }
       }
     </style>
   </head>
