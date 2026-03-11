@@ -15,6 +15,15 @@ import { connect, DEFAULT_WS_URL } from './client/connection';
 import { initLobbyUI, showLobbyUI } from './client/lobby-ui';
 import { insertGarbageRows, BOARD_WIDTH } from './game/board';
 import type { ServerEvent } from './shared/protocol';
+import {
+  createOpponentMap,
+  updateOpponentBoard,
+  eliminateOpponent,
+  clearOpponents,
+  getOpponents,
+  type OpponentMap,
+  type OpponentState,
+} from './client/opponent-state';
 
 // ---------------------------------------------------------------------------
 // Canvas setup (hidden until game starts)
@@ -38,6 +47,7 @@ let isEliminated = false;
 let waitingForStart = false;
 let matchResult: { type: 'eliminated'; placement: number; total: number } | { type: 'winner' } | null = null;
 let previousLinesCleared = 0;
+let opponents: OpponentMap = createOpponentMap();
 
 // ---------------------------------------------------------------------------
 // Overlay UI helpers
@@ -115,12 +125,18 @@ function advanceGame(deltaMs: number): void {
     conn.send({ type: 'lines_cleared', count: newLines });
   }
 
-  // Process garbage queue when a piece locks (detected by piece type change or new spawn)
-  if (
-    garbageQueue.length > 0 &&
+  // Detect piece lock (new piece spawned at top)
+  const pieceLocked =
     prevState.currentPiece.type !== state.currentPiece.type &&
-    state.currentPiece.y === 0
-  ) {
+    state.currentPiece.y === 0;
+
+  // Send board snapshot to server on piece lock
+  if (pieceLocked) {
+    conn.send({ type: 'board_update', board: state.board });
+  }
+
+  // Process garbage queue when a piece locks
+  if (garbageQueue.length > 0 && pieceLocked) {
     for (const g of garbageQueue) {
       const gapColumn = Math.floor(Math.random() * BOARD_WIDTH);
       state = { ...state, board: insertGarbageRows(state.board, g.lines, gapColumn) };
@@ -201,6 +217,7 @@ function startGame(): void {
   waitingForStart = true;
   matchResult = null;
   previousLinesCleared = 0;
+  opponents = clearOpponents();
   removeOverlays();
   animFrameId = requestAnimationFrame(gameLoop);
 }
@@ -215,6 +232,7 @@ function stopGame(): void {
     clearInterval(backgroundTickId);
     backgroundTickId = null;
   }
+  opponents = clearOpponents();
   removeOverlays();
 }
 
@@ -228,6 +246,10 @@ export function getState(): GameState {
 
 export function setState(newState: GameState): void {
   state = newState;
+}
+
+export function getOpponentStates(): readonly OpponentState[] {
+  return getOpponents(opponents);
 }
 
 // ---------------------------------------------------------------------------
@@ -264,6 +286,17 @@ conn.onEvent((event: ServerEvent) => {
 
     case 'player_eliminated':
       totalPlayersInGame = event.alivePlayers.length + (event.alivePlayers.length + 1);
+      opponents = eliminateOpponent(opponents, event.playerId);
+      break;
+
+    case 'opponent_board':
+      opponents = updateOpponentBoard(
+        opponents,
+        event.playerId,
+        event.playerName,
+        event.board,
+        event.alive,
+      );
       break;
 
     case 'match_end':
