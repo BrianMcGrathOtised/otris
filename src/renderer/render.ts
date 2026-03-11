@@ -35,6 +35,10 @@ import {
   OPPONENT_PANEL_X,
   OPPONENT_MINI_BOARD_SPACING,
   PADDING_TOP,
+  GARBAGE_QUEUE_WIDTH,
+  GARBAGE_QUEUE_X,
+  GARBAGE_QUEUE_Y,
+  GARBAGE_SEGMENT_HEIGHT,
 } from './layout';
 import { isValidPosition } from '../game/board';
 
@@ -517,6 +521,72 @@ function drawOpponentBoards(
 }
 
 // ---------------------------------------------------------------------------
+// Garbage queue indicator
+// ---------------------------------------------------------------------------
+
+/**
+ * Draw a vertical bar to the left of the board showing pending garbage lines.
+ * Each pending line is a red segment, stacking from the bottom up.
+ */
+function drawGarbageQueue(
+  ctx: CanvasRenderingContext2D,
+  garbageQueueSize: number,
+): void {
+  if (garbageQueueSize <= 0) return;
+
+  const maxSegments = BOARD_HEIGHT; // can't exceed board height
+  const count = Math.min(garbageQueueSize, maxSegments);
+
+  for (let i = 0; i < count; i++) {
+    const segY =
+      GARBAGE_QUEUE_Y + BOARD_PIXEL_HEIGHT - (i + 1) * GARBAGE_SEGMENT_HEIGHT;
+
+    ctx.save();
+    const gradient = ctx.createLinearGradient(
+      GARBAGE_QUEUE_X,
+      segY,
+      GARBAGE_QUEUE_X + GARBAGE_QUEUE_WIDTH,
+      segY,
+    );
+    gradient.addColorStop(0, '#ff1744');
+    gradient.addColorStop(1, '#c4001d');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(
+      GARBAGE_QUEUE_X,
+      segY,
+      GARBAGE_QUEUE_WIDTH,
+      GARBAGE_SEGMENT_HEIGHT - 1,
+    );
+    ctx.restore();
+  }
+}
+
+/**
+ * Draw a red flash border around the board when garbage is received.
+ * `flashAlpha` should decay from 1 to 0 over a short duration.
+ */
+function drawGarbageFlash(
+  ctx: CanvasRenderingContext2D,
+  flashAlpha: number,
+): void {
+  if (flashAlpha <= 0) return;
+
+  ctx.save();
+  ctx.globalAlpha = flashAlpha;
+  ctx.strokeStyle = '#ff1744';
+  ctx.lineWidth = 4;
+  ctx.shadowColor = '#ff1744';
+  ctx.shadowBlur = 12;
+  ctx.strokeRect(
+    BOARD_X - 2,
+    BOARD_Y - 2,
+    BOARD_PIXEL_WIDTH + 4,
+    BOARD_PIXEL_HEIGHT + 4,
+  );
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------------------
 // Main render function
 // ---------------------------------------------------------------------------
 
@@ -528,6 +598,8 @@ export function render(
   ctx: CanvasRenderingContext2D,
   state: GameState,
   opponents: readonly OpponentState[] = [],
+  garbageQueueSize: number = 0,
+  garbageFlashAlpha: number = 0,
 ): void {
   // Clear canvas
   ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -542,6 +614,8 @@ export function render(
   drawNextPanel(ctx, state);
   drawHUD(ctx, state);
   drawOpponentBoards(ctx, opponents);
+  drawGarbageQueue(ctx, garbageQueueSize);
+  drawGarbageFlash(ctx, garbageFlashAlpha);
 
   if (state.gameOver) {
     drawGameOverOverlay(ctx);

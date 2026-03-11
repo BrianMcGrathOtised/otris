@@ -53,6 +53,12 @@ export const NEXT_SIZE = SIDE_PANEL_WIDTH - 20;
 /** Mini cell size for hold/next displays. */
 export const MINI_CELL_SIZE = 20;
 
+/** Garbage queue indicator (vertical bar on left edge of board). */
+export const GARBAGE_QUEUE_WIDTH = 8;
+export const GARBAGE_QUEUE_X = BOARD_X - GARBAGE_QUEUE_WIDTH - 2;
+export const GARBAGE_QUEUE_Y = BOARD_Y;
+export const GARBAGE_SEGMENT_HEIGHT = CELL_SIZE;
+
 /**
  * Convert a board grid coordinate (col, row) to the top-left pixel on the canvas.
  * Row 0 is the first visible row (HIDDEN_ROWS are not displayed).

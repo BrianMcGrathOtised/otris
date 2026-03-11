@@ -43,6 +43,7 @@ const ctx = canvas.getContext('2d')!;
 let state: GameState = createGame();
 let animFrameId = 0;
 let garbageQueue: Array<{ lines: number }> = [];
+let garbageFlashAlpha = 0;
 let isEliminated = false;
 let waitingForStart = false;
 let matchResult: { type: 'eliminated'; placement: number; total: number } | { type: 'winner' } | null = null;
@@ -158,7 +159,15 @@ function gameLoop(timestamp: number): void {
   const cappedDelta = Math.min(delta, 100);
   advanceGame(cappedDelta);
 
-  render(ctx, state, getOpponents(opponents));
+  // Decay garbage flash alpha (~0.5s fade at 60fps)
+  if (garbageFlashAlpha > 0) {
+    garbageFlashAlpha = Math.max(0, garbageFlashAlpha - cappedDelta / 500);
+  }
+
+  // Calculate total pending garbage lines
+  const totalGarbageLines = garbageQueue.reduce((sum, g) => sum + g.lines, 0);
+
+  render(ctx, state, getOpponents(opponents), totalGarbageLines, garbageFlashAlpha);
 
   // Show overlay based on match result
   if (matchResult && !document.getElementById('game-overlay')) {
@@ -213,6 +222,7 @@ function startGame(): void {
   state = createGame();
   lastTime = 0;
   garbageQueue = [];
+  garbageFlashAlpha = 0;
   isEliminated = false;
   waitingForStart = true;
   matchResult = null;
@@ -282,6 +292,7 @@ conn.onEvent((event: ServerEvent) => {
 
     case 'garbage_received':
       garbageQueue.push({ lines: event.lines });
+      garbageFlashAlpha = 1; // trigger red flash
       break;
 
     case 'player_eliminated':

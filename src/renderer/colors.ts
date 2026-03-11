@@ -76,6 +76,13 @@ export const PIECE_COLORS: Record<number, PieceColorSet> = {
     dark: '#c56200',
     glow: '#ff9100',
   },
+  // Garbage = dark gray with slight warm tint (colorId 8)
+  8: {
+    base: '#4a4550',
+    light: '#5e5868',
+    dark: '#33303a',
+    glow: '#4a4550',
+  },
 };
 
 /**
